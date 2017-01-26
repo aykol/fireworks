@@ -1274,7 +1274,7 @@ class LaunchPad(FWSerializable):
         return reruns
 
     # TODO: why is this a separate function from rerun_fws???
-    def rerun_fws_task_level(self, fw_id, rerun_duplicates=True, launch_id=None, recover_mode=None):
+    def rerun_fws_task_level(self, fw_id, rerun_duplicates=True, launch_id=None, recover_mode=None, force_rerun=None):
         """
         Rerun a fw at the task level.
 
@@ -1284,6 +1284,7 @@ class LaunchPad(FWSerializable):
             launch_id (int): launch id to rerun, if known. otherwise the last launch_id will be used
             recover_mode (str): use "prev_dir" to run again in previous dir, "cp" to try to copy
                 data to new dir, or None to start from scratch
+            force_rerun (int): Restarts from the specified task.
 
         Returns:
             [int]: list of rerun firework ids.
@@ -1301,11 +1302,25 @@ class LaunchPad(FWSerializable):
         elif launch_id not in [l.launch_id for l in m_fw.launches+m_fw.archived_launches]:
             self.m_logger.info("Launch id {} not existent for m_fw {}. Skipping...".format(launch_id, fw_id))
             return None
-        # check if the failed task information is available, can't recover otherwise
+
+        # check if the failed task information is available, can't recover otherwise.
+        # unless forced by specifying which task to restart.
         if self.get_launch_by_id(launch_id).action.stored_data.get('_exception', {}).get('_failed_task_n', None) is None:
-            self.m_logger.info("No information to recover launch id {} for m_fw {}. Skipping..."
-                               .format(launch_id, fw_id))
-            return None
+            if not force_rerun:
+                self.m_logger.info("No information to recover launch id {} for m_fw {}. Skipping..."
+                                   .format(launch_id, fw_id))
+                return None
+            elif force_rerun in range(len(m_fw.tasks)):
+                # missing launch.action.stored_data is populated to force start from the given task
+                set_launch = {'action':{'stored_data': {'_message': 'forced restart from task',
+                              '_task': m_fw.tasks[force_rerun], '_exception': {'_failed_task_n': force_rerun},
+                              '_recovery': {'_all_stored_data': None, '_all_update_spec': None, '_all_mod_spec': None}}}}
+                self.launches.find_one_and_update({'launch_id': launch_id}, set_launch)
+            else:
+                self.m_logger.info("Can't find task {} in m_fw {}. Skipping..."
+                                   .format(force_rerun, fw_id))
+                return None
+
 
         #rerun jobs and duplicates
         reruns = self.rerun_fw(fw_id, rerun_duplicates)

@@ -420,7 +420,8 @@ def rerun_fws(args):
         elif len(launch_ids) != len(fw_ids):
             raise ValueError("Specify the same number of tasks and launches")
         for f, l in zip(fw_ids, launch_ids):
-            lp.rerun_fws_task_level(int(f), launch_id=l, recover_mode=args.recover_mode)
+            lp.rerun_fws_task_level(int(f), launch_id=l, recover_mode=args.recover_mode,
+                                    force_rerun=args.force_rerun)
             lp.m_logger.debug('Processed fw_id: {}'.format(f))
     else:
         for f in fw_ids:
@@ -741,6 +742,8 @@ def lpad():
                                   help='Recover launch id. --task-level must be given', default=None, type=int)
     rerun_fws_parser.add_argument('--clear-recovery', action='store_true', help="clear recovery data "
                                                                                 "to restart cleanly")
+    rerun_fws_parser.add_argument('-fr', '--force-rerun', help="Force the given task to restart. --task-level must be given",
+                                  default=None, type=int)
     recover_mode_group = rerun_fws_parser.add_mutually_exclusive_group()
     recover_mode_group.add_argument('-cp', '--copy-data', action='store_const', const='cp',
                                     dest='recover_mode',
