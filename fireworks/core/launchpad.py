@@ -1305,24 +1305,25 @@ class LaunchPad(FWSerializable):
 
         # check if the failed task information is available, can't recover otherwise.
         # unless forced by specifying which task to restart.
+        if force_rerun in range(len(m_fw.tasks)):
+            # missing launch.action.stored_data is populated to force start from the given task
+            set_launch = {'action': {'stored_data': {'_message': 'forced restart from task',
+                                                     '_task': m_fw.tasks[force_rerun],
+                                                     '_exception': {'_failed_task_n': force_rerun},
+                                                     '_recovery': {'_all_stored_data': None, '_all_update_spec': None,
+                                                                   '_all_mod_spec': None}}}}
+            self.launches.find_one_and_update({'launch_id': launch_id}, set_launch)
+        else:
+            self.m_logger.info("Can't find task {} in m_fw {}. Skipping..."
+                               .format(force_rerun, fw_id))
+            return None
+
         if self.get_launch_by_id(launch_id).action.stored_data.get('_exception', {}).get('_failed_task_n', None) is None:
-            if not force_rerun:
-                self.m_logger.info("No information to recover launch id {} for m_fw {}. Skipping..."
-                                   .format(launch_id, fw_id))
-                return None
-            elif force_rerun in range(len(m_fw.tasks)):
-                # missing launch.action.stored_data is populated to force start from the given task
-                set_launch = {'action':{'stored_data': {'_message': 'forced restart from task',
-                              '_task': m_fw.tasks[force_rerun], '_exception': {'_failed_task_n': force_rerun},
-                              '_recovery': {'_all_stored_data': None, '_all_update_spec': None, '_all_mod_spec': None}}}}
-                self.launches.find_one_and_update({'launch_id': launch_id}, set_launch)
-            else:
-                self.m_logger.info("Can't find task {} in m_fw {}. Skipping..."
-                                   .format(force_rerun, fw_id))
-                return None
+            self.m_logger.info("No information to recover launch id {} for m_fw {}. Skipping..."
+                               .format(launch_id, fw_id))
+            return None
 
-
-        #rerun jobs and duplicates
+        # rerun jobs and duplicates
         reruns = self.rerun_fw(fw_id, rerun_duplicates)
 
         # if rerun was fine, set the task_level parameters
