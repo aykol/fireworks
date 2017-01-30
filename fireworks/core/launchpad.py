@@ -1307,11 +1307,11 @@ class LaunchPad(FWSerializable):
         # unless forced by specifying which task to restart.
         if force_rerun in range(len(m_fw.tasks)):
             # missing launch.action.stored_data is populated to force start from the given task
-            set_launch = {"$set": {'action.stored_data': {'_message': 'forced restart from task',
+            set_launch = {"$set": {'action': {'stored_data': {'_message': 'forced restart from task',
                                             '_task': m_fw.tasks[force_rerun],
                                             '_exception': {'_failed_task_n': force_rerun},
                                             '_recovery': {'_all_stored_data': None, '_all_update_spec': None,
-                                                        '_all_mod_spec': None}}}}
+                                                        '_all_mod_spec': None}}}}}
             self.launches.find_one_and_update({'launch_id': launch_id}, set_launch)
         else:
             self.m_logger.info("Can't find task {} in m_fw {}. Skipping..."
